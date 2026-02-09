@@ -2,7 +2,9 @@ import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { SearchableImpressionProfile, getImpressionCategory } from './impressions';
 
-const STORE_PATH = path.join(process.cwd(), '.data', 'impression-profiles.json');
+const isVercelRuntime = !!process.env.VERCEL;
+const storeDir = process.env.PROFILE_STORE_DIR || (isVercelRuntime ? '/tmp' : path.join(process.cwd(), '.data'));
+const STORE_PATH = path.join(storeDir, 'impression-profiles.json');
 
 function normalizeUsername(username: string): string {
     return username.toLowerCase().replace('@', '').trim();
@@ -68,6 +70,11 @@ export async function upsertSearchedProfile(profile: SearchableImpressionProfile
 
     const updated = [normalizedProfile, ...withoutCurrent].slice(0, 500);
 
-    await mkdir(path.dirname(STORE_PATH), { recursive: true });
-    await writeFile(STORE_PATH, JSON.stringify(updated, null, 2), 'utf-8');
+    try {
+        await mkdir(path.dirname(STORE_PATH), { recursive: true });
+        await writeFile(STORE_PATH, JSON.stringify(updated, null, 2), 'utf-8');
+    } catch (error) {
+        // Persistence is best-effort in serverless environments.
+        console.error('Failed to persist searched profile store:', error);
+    }
 }
