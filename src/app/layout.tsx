@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { GoogleAnalytics } from "@/components/google-analytics";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
@@ -43,6 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <GoogleAnalytics />
         <div className="gradient-bg" />
         {children}
       </body>

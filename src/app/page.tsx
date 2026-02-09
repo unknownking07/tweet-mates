@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { trackEvent } from "@/lib/analytics";
 
 export default function Home() {
   const [username, setUsername] = useState("");
@@ -15,6 +16,9 @@ export default function Home() {
 
     setIsLoading(true);
     const cleanUsername = username.replace("@", "").trim();
+    trackEvent("search_submit", {
+      handle_length: cleanUsername.length,
+    });
     router.push(`/results/${cleanUsername}`);
   };
 
