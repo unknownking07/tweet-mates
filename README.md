@@ -1,6 +1,6 @@
 # TweetMates
 
-Find CT-style matches based on estimated 10-day average impressions.
+Find CT-style matches based on estimated impressions from the latest 10 posts.
 
 ## Requirements
 
@@ -36,7 +36,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Notes
 
 - Timeline fetch tries official X API v2 first, then falls back to scraping sources.
-- Matching is based on estimated 10-day average impressions/day and impression category.
+- Matching is based on estimated impressions/day from the latest 10 posts and impression category.
 - Match candidates come from accounts that have already been searched in this app.
 - Supabase config is optional and only used for persistence/matches cache.
 
@@ -48,7 +48,7 @@ This app sends:
 - Automatic page views for all route changes.
 - `search_submit` when a user searches a handle.
 - `profile_analysis_success` and `profile_analysis_error`.
-- Share actions (`share_caption_copied`, `share_card_open_clicked`, `share_card_download_clicked`, `share_caption_x_clicked`).
+- Share action (`share_caption_x_clicked`).
 
 After deploy, open your GA4 property dashboard:
 - Realtime: verify events are coming in.

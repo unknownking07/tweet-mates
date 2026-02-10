@@ -36,7 +36,7 @@ export default function Home() {
         {/* Tagline */}
         <p className="text-xl md:text-2xl text-gray-300 text-center max-w-xl mb-3 font-light">
           Find your CT soulmate based on your
-          <span className="text-rose-400 font-medium"> 10-day average impressions </span>
+          <span className="text-rose-400 font-medium"> latest 10-post impressions </span>
         </p>
         <p className="text-gray-500 text-center mb-12 text-sm">
           No login required. Just vibes.
@@ -112,7 +112,7 @@ export default function Home() {
               </div>
               <h3 className="font-medium text-white mb-2">Estimate Reach</h3>
               <p className="text-gray-500 text-sm">
-                We estimate your 10-day avg impressions/day
+                We estimate your impressions/day from your latest 10 posts
               </p>
             </div>
             <div className="text-center">
@@ -135,7 +135,7 @@ export default function Home() {
             Impression Categories
           </h2>
           <p className="text-gray-500 text-center mb-10 text-sm">
-            Your estimated 10d avg impressions/day determines your category
+            Your estimated impressions/day from 10 posts determines your category
           </p>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[

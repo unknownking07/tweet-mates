@@ -38,7 +38,7 @@ export function generateShareText(
     matchScore?: number
 ): string {
     let text = `I just ran @${username} through TweetMates.\n`;
-    text += `Estimated 10d avg impressions/day: ${formatNumber(avgImpressions100d)}\n`;
+    text += `Estimated avg impressions/day (latest 10 posts): ${formatNumber(avgImpressions100d)}\n`;
     text += `Distribution tier: ${categoryLabel}\n\n`;
 
     if (matchUsername && matchScore) {
@@ -54,38 +54,4 @@ export function generateShareText(
 
 export function getShareUrl(text: string): string {
     return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-}
-
-interface ShareCardParams {
-    username: string;
-    displayName: string;
-    avgImpressions100d: number;
-    totalEstimatedImpressions100d: number;
-    tweetsInWindow: number;
-    categoryLabel: string;
-    source: 'api_v2' | 'scraping';
-    matchUsername?: string;
-    matchScore?: number;
-}
-
-export function getStatsCardUrl(params: ShareCardParams): string {
-    const search = new URLSearchParams({
-        username: params.username,
-        displayName: params.displayName,
-        avg: String(Math.round(params.avgImpressions100d)),
-        total: String(Math.round(params.totalEstimatedImpressions100d)),
-        posts: String(params.tweetsInWindow),
-        tier: params.categoryLabel,
-        source: params.source === 'api_v2' ? 'X API' : 'Scraping',
-    });
-
-    if (params.matchUsername) {
-        search.set('match', params.matchUsername);
-    }
-
-    if (typeof params.matchScore === 'number') {
-        search.set('matchScore', String(Math.round(params.matchScore)));
-    }
-
-    return `/api/share-card?${search.toString()}`;
 }

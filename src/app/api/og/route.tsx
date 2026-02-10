@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
                         {impressions}
                     </span>
                     <span style={{ fontSize: 32, color: 'rgba(255,255,255,0.8)' }}>
-                        IMP/DAY (10D)
+                        IMP/DAY (10 POSTS)
                     </span>
                 </div>
 

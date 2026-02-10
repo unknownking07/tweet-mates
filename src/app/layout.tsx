@@ -10,12 +10,12 @@ const SITE_URL =
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "TweetMates - Impression Match for CT",
-  description: "Get matched with CT accounts based on estimated 10-day average impressions.",
+  description: "Get matched with CT accounts based on estimated impressions from the latest 10 posts.",
   keywords: ["crypto", "twitter", "x", "ct", "impressions", "matching", "web3"],
   authors: [{ name: "TweetMates" }],
   openGraph: {
     title: "TweetMates - Impression Match for CT",
-    description: "Get matched with CT accounts based on estimated 10-day average impressions.",
+    description: "Get matched with CT accounts based on estimated impressions from the latest 10 posts.",
     url: "/",
     siteName: "TweetMates",
     images: [
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "TweetMates - Impression Match for CT",
-    description: "Get matched with CT accounts based on estimated 10-day average impressions.",
+    description: "Get matched with CT accounts based on estimated impressions from the latest 10 posts.",
     images: ["/api/og"],
   },
   robots: {

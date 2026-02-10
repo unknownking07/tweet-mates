@@ -1,8 +1,7 @@
 import { Tweet } from './twitter';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const ANALYSIS_WINDOW_DAYS = 10;
-const ANALYSIS_WINDOW_MS = ANALYSIS_WINDOW_DAYS * DAY_MS;
+const ANALYSIS_POSTS = 10;
 
 export type ImpressionCategory =
     | 'ghost'
@@ -140,8 +139,7 @@ export function estimateImpressionMetrics(tweets: Tweet[]): ImpressionMetrics {
         };
     }
 
-    const cutoff = Date.now() - ANALYSIS_WINDOW_MS;
-    const analysisSample = eligibleTweets.filter((entry) => entry.timestamp >= cutoff);
+    const analysisSample = eligibleTweets.slice(0, Math.min(ANALYSIS_POSTS, eligibleTweets.length));
 
     let total = 0;
     let hasEngagementData = false;
@@ -152,9 +150,16 @@ export function estimateImpressionMetrics(tweets: Tweet[]): ImpressionMetrics {
         hasEngagementData = hasEngagementData || estimate.hasMetrics;
     }
 
+    let observedDays = 1;
+    if (analysisSample.length > 1) {
+        const newestTimestamp = analysisSample[0].timestamp;
+        const oldestTimestamp = analysisSample[analysisSample.length - 1].timestamp;
+        observedDays = Math.max(1, Math.ceil((newestTimestamp - oldestTimestamp) / DAY_MS) + 1);
+    }
+
     return {
-        // Legacy field names kept for API compatibility; values now represent 10-day analysis.
-        avgImpressions100d: Math.round(total / ANALYSIS_WINDOW_DAYS),
+        // Legacy field names kept for API compatibility; values now represent 10-post sampling.
+        avgImpressions100d: Math.round(total / observedDays),
         totalEstimatedImpressions100d: Math.round(total),
         tweetsInWindow: analysisSample.length,
         hasEngagementData,
@@ -191,7 +196,7 @@ function matchReason(targetAvg: number, candidate: SearchableImpressionProfile):
     const delta = Math.abs(mine - theirs);
     const pctDelta = mine > 0 ? Math.round((delta / mine) * 100) : 0;
 
-    return `~${formatCompact(theirs)} est. impressions/day (10d avg), ${pctDelta}% from your level.`;
+    return `~${formatCompact(theirs)} est. impressions/day (latest 10 posts), ${pctDelta}% from your level.`;
 }
 
 export function getImpressionMatches(
@@ -207,7 +212,7 @@ export function getImpressionMatches(
         .map((candidate) => {
             const base = impressionSimilarityScore(targetAvgImpressions100d, candidate.impressions100dAvg);
             const sameCategoryBonus = candidate.category === targetCategory ? 6 : 0;
-            const volumeConfidence = Math.min(6, Math.floor(candidate.tweetsInWindow / 5));
+            const volumeConfidence = Math.min(6, Math.floor(candidate.tweetsInWindow / 2));
             const matchScore = clamp(base + sameCategoryBonus + volumeConfidence);
 
             return {

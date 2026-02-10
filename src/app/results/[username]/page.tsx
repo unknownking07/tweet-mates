@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { getShareUrl, generateShareText, getStatsCardUrl } from "@/lib/utils";
+import { getShareUrl, generateShareText } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
 
 interface UserData {
@@ -49,7 +49,6 @@ export default function ResultsPage({
     const [userData, setUserData] = useState<UserData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
 
     useEffect(() => {
         const fetchData = async () => {
@@ -111,30 +110,6 @@ export default function ResultsPage({
         topMatch?.matchScore
     );
     const shareUrl = getShareUrl(shareText);
-    const statsCardUrl = getStatsCardUrl({
-        username: user.username,
-        displayName: user.displayName,
-        avgImpressions100d: impressionMetrics.avgImpressions100d,
-        totalEstimatedImpressions100d: impressionMetrics.totalEstimatedImpressions100d,
-        tweetsInWindow: impressionMetrics.tweetsInWindow,
-        categoryLabel: category.label,
-        source,
-        matchUsername: topMatch?.username,
-        matchScore: topMatch?.matchScore,
-    });
-
-    const copyShareCaption = async () => {
-        try {
-            await navigator.clipboard.writeText(shareText);
-            trackEvent("share_caption_copied");
-            setCopyStatus("copied");
-        } catch {
-            trackEvent("share_caption_copy_failed");
-            setCopyStatus("failed");
-        } finally {
-            setTimeout(() => setCopyStatus("idle"), 1800);
-        }
-    };
 
     return (
         <main className="min-h-screen px-4 py-8">
@@ -187,20 +162,20 @@ export default function ResultsPage({
                             <h1 className="text-2xl font-bold text-white">{user.displayName}</h1>
                             <p className="text-gray-400">@{user.username}</p>
                             <p className="text-xs text-gray-500 mt-1">
-                                Source: {source === "api_v2" ? "X API" : "Scraping"} · {impressionMetrics.tweetsInWindow} posts analyzed
+                                Source: {source === "api_v2" ? "X API" : "Scraping"} · {impressionMetrics.tweetsInWindow}/10 posts analyzed
                             </p>
                         </div>
                     </div>
 
                     <div className="card mb-5 p-4">
                         <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">
-                            Estimated 10d Avg Impressions / Day
+                            Estimated Avg Impressions / Day (Latest 10 Posts)
                         </p>
                         <p className="text-2xl font-bold text-rose-300">
                             {formatCompact(impressionMetrics.avgImpressions100d)}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                            Total est. impressions (10d): {formatCompact(impressionMetrics.totalEstimatedImpressions100d)}
+                            Total est. impressions (10 posts): {formatCompact(impressionMetrics.totalEstimatedImpressions100d)}
                         </p>
                     </div>
 
@@ -228,65 +203,6 @@ export default function ResultsPage({
                     )}
                 </div>
 
-                <div className="card p-5 mb-8">
-                    <h3 className="text-lg font-semibold text-white mb-2">Share-Ready CT Card</h3>
-                    <p className="text-sm text-gray-400 mb-4">
-                        Post this visual with your caption for better attention on the timeline.
-                    </p>
-
-                    <Image
-                        src={statsCardUrl}
-                        alt={`Share card for @${user.username}`}
-                        width={1200}
-                        height={630}
-                        unoptimized
-                        className="w-full rounded-xl border border-white/10 mb-4"
-                    />
-
-                    <div className="flex flex-wrap gap-3 justify-center">
-                        <a
-                            href={statsCardUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn-secondary"
-                            onClick={() => trackEvent("share_card_open_clicked")}
-                        >
-                            Open Card
-                        </a>
-                        <a
-                            href={statsCardUrl}
-                            download={`${user.username}-tweetmates-card.png`}
-                            className="btn-secondary"
-                            onClick={() => trackEvent("share_card_download_clicked")}
-                        >
-                            Download Card
-                        </a>
-                        <button
-                            type="button"
-                            onClick={copyShareCaption}
-                            className="btn-secondary"
-                        >
-                            {copyStatus === "copied"
-                                ? "Caption Copied"
-                                : copyStatus === "failed"
-                                    ? "Copy Failed"
-                                    : "Copy Caption"}
-                        </button>
-                        <a
-                            href={shareUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="twitter-share"
-                            onClick={() => trackEvent("share_caption_x_clicked", { location: "card" })}
-                        >
-                            Post Caption on X
-                        </a>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-4 text-center">
-                        Tip: attach the card image when posting to make the stat instantly legible.
-                    </p>
-                </div>
-
                 <div className="text-center">
                     <Link href="/" className="text-rose-400 hover:text-rose-300 transition">
                         Check another username
@@ -312,7 +228,7 @@ function MatchCard({ match, rank }: { match: Match; rank: number }) {
                 </div>
                 <p className="text-sm text-gray-400 mb-2">{match.compatibilityReason}</p>
                 <p className="text-xs text-gray-500 mb-2">
-                    10d avg est. impressions/day: {formatCompact(match.impressions100dAvg)}
+                    Avg est. impressions/day (10 posts): {formatCompact(match.impressions100dAvg)}
                 </p>
             </div>
 
