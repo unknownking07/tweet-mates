@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
             profileImageUrl: string;
         } | null = null;
         let source: 'api_v2' | 'scraping' = 'scraping';
+        let cached = false;
 
         if (isTwitterApiV2Available()) {
             const v2Result = await fetchTweetsV2(cleanUsername);
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
         if (tweets.length === 0) {
             const scraped = await fetchTweets(cleanUsername);
             tweets = scraped.tweets;
+            cached = scraped.cached;
 
             if (scraped.user) {
                 user = {
@@ -143,7 +145,7 @@ export async function POST(request: NextRequest) {
             impressionMetrics,
             category,
             matches,
-            cached: false,
+            cached,
             source,
         });
     } catch (error) {

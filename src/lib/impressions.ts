@@ -1,6 +1,9 @@
 import { Tweet } from './twitter';
 
-const DAYS_100_MS = 100 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DAYS_100 = 100;
+const DAYS_100_MS = DAYS_100 * DAY_MS;
+const MIN_ANALYZED_TWEETS = 100;
 
 export type ImpressionCategory =
     | 'ghost'
@@ -107,6 +110,17 @@ function estimateTweetImpressions(tweet: Tweet): { value: number; hasMetrics: bo
     return { value: tweet.is_reply ? 85 : 140, hasMetrics: false };
 }
 
+function getEligibleTweets(tweets: Tweet[]): Array<{ tweet: Tweet; timestamp: number }> {
+    return tweets
+        .filter((tweet) => !tweet.is_retweet)
+        .map((tweet) => {
+            const timestamp = new Date(tweet.created_at).getTime();
+            return { tweet, timestamp };
+        })
+        .filter((entry) => Number.isFinite(entry.timestamp))
+        .sort((a, b) => b.timestamp - a.timestamp);
+}
+
 export function estimateImpressionMetrics(tweets: Tweet[]): ImpressionMetrics {
     if (!tweets || tweets.length === 0) {
         return {
@@ -117,30 +131,47 @@ export function estimateImpressionMetrics(tweets: Tweet[]): ImpressionMetrics {
         };
     }
 
+    const eligibleTweets = getEligibleTweets(tweets);
+    if (eligibleTweets.length === 0) {
+        return {
+            avgImpressions100d: 0,
+            totalEstimatedImpressions100d: 0,
+            tweetsInWindow: 0,
+            hasEngagementData: false,
+        };
+    }
+
     const cutoff = Date.now() - DAYS_100_MS;
-
-    const inWindow = tweets.filter((tweet) => {
-        if (tweet.is_retweet) {
-            return false;
-        }
-
-        const timestamp = new Date(tweet.created_at).getTime();
-        return Number.isFinite(timestamp) && timestamp >= cutoff;
-    });
+    const inWindow = eligibleTweets.filter((entry) => entry.timestamp >= cutoff);
+    const analysisSample = inWindow.length >= MIN_ANALYZED_TWEETS
+        ? inWindow
+        : eligibleTweets.slice(0, Math.min(MIN_ANALYZED_TWEETS, eligibleTweets.length));
 
     let total = 0;
     let hasEngagementData = false;
 
-    for (const tweet of inWindow) {
+    for (const { tweet } of analysisSample) {
         const estimate = estimateTweetImpressions(tweet);
         total += estimate.value;
         hasEngagementData = hasEngagementData || estimate.hasMetrics;
     }
 
+    let totalEstimatedImpressions100d = total;
+    if (inWindow.length < MIN_ANALYZED_TWEETS && analysisSample.length > 1) {
+        const newestTimestamp = analysisSample[0].timestamp;
+        const oldestTimestamp = analysisSample[analysisSample.length - 1].timestamp;
+        const observedDays = Math.max(
+            DAYS_100,
+            Math.ceil((newestTimestamp - oldestTimestamp) / DAY_MS) + 1
+        );
+
+        totalEstimatedImpressions100d = (total / observedDays) * DAYS_100;
+    }
+
     return {
-        avgImpressions100d: Math.round(total / 100),
-        totalEstimatedImpressions100d: Math.round(total),
-        tweetsInWindow: inWindow.length,
+        avgImpressions100d: Math.round(totalEstimatedImpressions100d / DAYS_100),
+        totalEstimatedImpressions100d: Math.round(totalEstimatedImpressions100d),
+        tweetsInWindow: analysisSample.length,
         hasEngagementData,
     };
 }

@@ -1,6 +1,9 @@
 import { Tweet } from './twitter';
 
 const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN;
+const TARGET_TWEETS = 100;
+const TIMELINE_PAGE_SIZE = 100;
+const MAX_TIMELINE_PAGES = 5;
 
 interface TwitterV2Response {
     data?: Array<{
@@ -82,33 +85,65 @@ export async function fetchTweetsV2(username: string): Promise<{
             profileImageUrl: userData.data.profile_image_url?.replace('_normal', '_400x400') || '',
         };
 
-        // Fetch recent tweets (up to 100)
-        const tweetsResponse = await fetch(
-            `https://api.twitter.com/2/users/${user.id}/tweets?max_results=100&tweet.fields=created_at,referenced_tweets,public_metrics&exclude=retweets`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${TWITTER_BEARER_TOKEN}`,
-                },
-            }
-        );
+        const collectedTweets: NonNullable<TwitterV2Response['data']> = [];
+        let nextToken: string | undefined;
 
-        if (!tweetsResponse.ok) {
-            const errorData = await tweetsResponse.json();
-            console.error('Twitter API v2 tweets fetch failed:', errorData);
-            return null;
+        // Keep paginating while data is available so low first-page counts still backfill.
+        for (let page = 0; page < MAX_TIMELINE_PAGES; page++) {
+            const params = new URLSearchParams({
+                max_results: String(TIMELINE_PAGE_SIZE),
+                'tweet.fields': 'created_at,referenced_tweets,public_metrics',
+                exclude: 'retweets',
+            });
+
+            if (nextToken) {
+                params.set('pagination_token', nextToken);
+            }
+
+            const tweetsResponse = await fetch(
+                `https://api.twitter.com/2/users/${user.id}/tweets?${params.toString()}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${TWITTER_BEARER_TOKEN}`,
+                    },
+                }
+            );
+
+            if (!tweetsResponse.ok) {
+                const errorData = await tweetsResponse.json();
+                console.error('Twitter API v2 tweets fetch failed:', errorData);
+
+                if (collectedTweets.length === 0) {
+                    return null;
+                }
+
+                break;
+            }
+
+            const tweetsData: TwitterV2Response = await tweetsResponse.json();
+            if (tweetsData.data?.length) {
+                collectedTweets.push(...tweetsData.data);
+            }
+
+            nextToken = tweetsData.meta?.next_token;
+            if (!nextToken || collectedTweets.length >= TARGET_TWEETS) {
+                break;
+            }
         }
 
-        const tweetsData: TwitterV2Response = await tweetsResponse.json();
-
-        if (!tweetsData.data) {
+        if (collectedTweets.length === 0) {
             return {
                 user,
                 tweets: [],
             };
         }
 
+        const dedupedTweets = Array.from(
+            new Map(collectedTweets.map((tweet) => [tweet.id, tweet])).values()
+        );
+
         // Convert to our Tweet format
-        const tweets: Tweet[] = tweetsData.data.map((tweet) => {
+        const tweets: Tweet[] = dedupedTweets.map((tweet) => {
             const isReply = tweet.referenced_tweets?.some(ref => ref.type === 'replied_to') || false;
             const isRetweet = tweet.referenced_tweets?.some(ref => ref.type === 'retweeted') || false;
 
