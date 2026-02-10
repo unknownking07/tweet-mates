@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <div style={{ fontSize: 24, color: '#fb7185', fontWeight: 700 }}>TweetMates</div>
-                        <div style={{ fontSize: 16, color: '#a1a1aa' }}>CT distribution card</div>
+                        <div style={{ fontSize: 16, color: '#a1a1aa' }}>10-day CT distribution card</div>
                     </div>
                     <div style={{ fontSize: 20, color: '#cbd5e1' }}>@{username}</div>
                 </div>
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
                         marginBottom: '22px',
                     }}
                 >
-                    <Stat label="100d total est." value={formatCompact(total)} />
+                    <Stat label="10d total est." value={formatCompact(total)} />
                     <Stat label="Posts analyzed" value={String(posts)} />
                     <Stat label="Data source" value={source} />
                 </div>

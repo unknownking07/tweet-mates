@@ -38,7 +38,7 @@ export function generateShareText(
     matchScore?: number
 ): string {
     let text = `I just ran @${username} through TweetMates.\n`;
-    text += `Estimated 100d avg impressions/day: ${formatNumber(avgImpressions100d)}\n`;
+    text += `Estimated 10d avg impressions/day: ${formatNumber(avgImpressions100d)}\n`;
     text += `Distribution tier: ${categoryLabel}\n\n`;
 
     if (matchUsername && matchScore) {

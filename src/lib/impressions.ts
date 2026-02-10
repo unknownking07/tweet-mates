@@ -1,9 +1,8 @@
 import { Tweet } from './twitter';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DAYS_100 = 100;
-const DAYS_100_MS = DAYS_100 * DAY_MS;
-const MIN_ANALYZED_TWEETS = 100;
+const ANALYSIS_WINDOW_DAYS = 10;
+const ANALYSIS_WINDOW_MS = ANALYSIS_WINDOW_DAYS * DAY_MS;
 
 export type ImpressionCategory =
     | 'ghost'
@@ -141,11 +140,8 @@ export function estimateImpressionMetrics(tweets: Tweet[]): ImpressionMetrics {
         };
     }
 
-    const cutoff = Date.now() - DAYS_100_MS;
-    const inWindow = eligibleTweets.filter((entry) => entry.timestamp >= cutoff);
-    const analysisSample = inWindow.length >= MIN_ANALYZED_TWEETS
-        ? inWindow
-        : eligibleTweets.slice(0, Math.min(MIN_ANALYZED_TWEETS, eligibleTweets.length));
+    const cutoff = Date.now() - ANALYSIS_WINDOW_MS;
+    const analysisSample = eligibleTweets.filter((entry) => entry.timestamp >= cutoff);
 
     let total = 0;
     let hasEngagementData = false;
@@ -156,21 +152,10 @@ export function estimateImpressionMetrics(tweets: Tweet[]): ImpressionMetrics {
         hasEngagementData = hasEngagementData || estimate.hasMetrics;
     }
 
-    let totalEstimatedImpressions100d = total;
-    if (inWindow.length < MIN_ANALYZED_TWEETS && analysisSample.length > 1) {
-        const newestTimestamp = analysisSample[0].timestamp;
-        const oldestTimestamp = analysisSample[analysisSample.length - 1].timestamp;
-        const observedDays = Math.max(
-            DAYS_100,
-            Math.ceil((newestTimestamp - oldestTimestamp) / DAY_MS) + 1
-        );
-
-        totalEstimatedImpressions100d = (total / observedDays) * DAYS_100;
-    }
-
     return {
-        avgImpressions100d: Math.round(totalEstimatedImpressions100d / DAYS_100),
-        totalEstimatedImpressions100d: Math.round(totalEstimatedImpressions100d),
+        // Legacy field names kept for API compatibility; values now represent 10-day analysis.
+        avgImpressions100d: Math.round(total / ANALYSIS_WINDOW_DAYS),
+        totalEstimatedImpressions100d: Math.round(total),
         tweetsInWindow: analysisSample.length,
         hasEngagementData,
     };
@@ -206,7 +191,7 @@ function matchReason(targetAvg: number, candidate: SearchableImpressionProfile):
     const delta = Math.abs(mine - theirs);
     const pctDelta = mine > 0 ? Math.round((delta / mine) * 100) : 0;
 
-    return `~${formatCompact(theirs)} est. impressions/day (100d avg), ${pctDelta}% from your level.`;
+    return `~${formatCompact(theirs)} est. impressions/day (10d avg), ${pctDelta}% from your level.`;
 }
 
 export function getImpressionMatches(

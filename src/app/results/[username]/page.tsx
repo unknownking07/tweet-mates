@@ -194,13 +194,13 @@ export default function ResultsPage({
 
                     <div className="card mb-5 p-4">
                         <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">
-                            Estimated 100d Avg Impressions / Day
+                            Estimated 10d Avg Impressions / Day
                         </p>
                         <p className="text-2xl font-bold text-rose-300">
                             {formatCompact(impressionMetrics.avgImpressions100d)}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                            Total est. impressions (100d): {formatCompact(impressionMetrics.totalEstimatedImpressions100d)}
+                            Total est. impressions (10d): {formatCompact(impressionMetrics.totalEstimatedImpressions100d)}
                         </p>
                     </div>
 
@@ -312,7 +312,7 @@ function MatchCard({ match, rank }: { match: Match; rank: number }) {
                 </div>
                 <p className="text-sm text-gray-400 mb-2">{match.compatibilityReason}</p>
                 <p className="text-xs text-gray-500 mb-2">
-                    100d avg est. impressions/day: {formatCompact(match.impressions100dAvg)}
+                    10d avg est. impressions/day: {formatCompact(match.impressions100dAvg)}
                 </p>
             </div>
 

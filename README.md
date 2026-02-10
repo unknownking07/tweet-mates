@@ -1,6 +1,6 @@
 # TweetMates
 
-Find CT-style matches based on estimated 100-day average impressions.
+Find CT-style matches based on estimated 10-day average impressions.
 
 ## Requirements
 
@@ -23,7 +23,9 @@ cp .env.example .env.local
 
 3. Optional: add `TWITTER_BEARER_TOKEN` in `.env.local` for official API data.
 
-4. Start the app:
+4. Recommended for social previews: set `NEXT_PUBLIC_SITE_URL` to your deployed URL (for example `https://tweetmates.vercel.app`).
+
+5. Start the app:
 
 ```bash
 npm run dev
@@ -34,7 +36,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Notes
 
 - Timeline fetch tries official X API v2 first, then falls back to scraping sources.
-- Matching is based on estimated 100-day average impressions/day and impression category.
+- Matching is based on estimated 10-day average impressions/day and impression category.
 - Match candidates come from accounts that have already been searched in this app.
 - Supabase config is optional and only used for persistence/matches cache.
 
