@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { GoogleAnalytics } from "@/components/google-analytics";
 
@@ -44,7 +45,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <GoogleAnalytics />
+        <Suspense fallback={null}>
+          <GoogleAnalytics />
+        </Suspense>
         <div className="gradient-bg" />
         {children}
       </body>
