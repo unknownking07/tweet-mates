@@ -1,4 +1,4 @@
-import { Tweet } from './twitter';
+import { Tweet, ScrapeDiagnostics } from './twitter';
 
 const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN;
 const TARGET_TWEETS = 100;
@@ -40,7 +40,7 @@ interface TwitterV2Response {
     }>;
 }
 
-export async function fetchTweetsV2(username: string): Promise<{
+export async function fetchTweetsV2(username: string, diagnostics?: ScrapeDiagnostics): Promise<{
     user: {
         id: string;
         username: string;
@@ -51,7 +51,14 @@ export async function fetchTweetsV2(username: string): Promise<{
 } | null> {
     if (!TWITTER_BEARER_TOKEN) {
         console.log('Twitter API v2: No bearer token configured');
+        if (diagnostics) {
+            diagnostics.v2.attempted = false;
+        }
         return null;
+    }
+
+    if (diagnostics) {
+        diagnostics.v2.attempted = true;
     }
 
     try {
@@ -68,6 +75,9 @@ export async function fetchTweetsV2(username: string): Promise<{
         if (!userResponse.ok) {
             const errorData = await userResponse.json();
             console.error('Twitter API v2 user lookup failed:', errorData);
+            if (diagnostics) {
+                diagnostics.v2.error = `User lookup HTTP ${userResponse.status}: ${errorData?.detail || errorData?.errors?.[0]?.detail || JSON.stringify(errorData)}`;
+            }
             return null;
         }
 
@@ -75,6 +85,9 @@ export async function fetchTweetsV2(username: string): Promise<{
 
         if (!userData.data) {
             console.log('Twitter API v2: User not found');
+            if (diagnostics) {
+                diagnostics.v2.error = 'User not found (no data in response)';
+            }
             return null;
         }
 
@@ -112,6 +125,9 @@ export async function fetchTweetsV2(username: string): Promise<{
             if (!tweetsResponse.ok) {
                 const errorData = await tweetsResponse.json();
                 console.error('Twitter API v2 tweets fetch failed:', errorData);
+                if (diagnostics) {
+                    diagnostics.v2.error = `Tweets fetch HTTP ${tweetsResponse.status} (page ${page + 1}): ${errorData?.detail || errorData?.errors?.[0]?.detail || JSON.stringify(errorData)}`;
+                }
 
                 if (collectedTweets.length === 0) {
                     return null;
@@ -166,12 +182,20 @@ export async function fetchTweetsV2(username: string): Promise<{
             };
         });
 
+        if (diagnostics) {
+            diagnostics.v2.success = tweets.length > 0;
+            diagnostics.v2.tweetCount = tweets.length;
+        }
+
         return {
             user,
             tweets,
         };
     } catch (error) {
         console.error('Twitter API v2 error:', error);
+        if (diagnostics) {
+            diagnostics.v2.error = error instanceof Error ? error.message : String(error);
+        }
         return null;
     }
 }

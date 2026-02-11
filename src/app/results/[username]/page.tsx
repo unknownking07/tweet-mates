@@ -192,7 +192,7 @@ export default function ResultsPage({
                     <h2 className="text-lg font-semibold mb-5 text-white">Your Impression Matches</h2>
                     {matches.length > 0 ? (
                         <div className="space-y-3">
-                            {matches.slice(0, 3).map((match, index) => (
+                            {matches.slice(0, 5).map((match, index) => (
                                 <MatchCard key={match.username} match={match} rank={index + 1} />
                             ))}
                         </div>
