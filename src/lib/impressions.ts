@@ -203,7 +203,7 @@ export function getImpressionMatches(
     targetAvgImpressions100d: number,
     username: string,
     candidates: SearchableImpressionProfile[],
-    limit = 3
+    limit = 5
 ): ImpressionMatch[] {
     const targetCategory = getImpressionCategory(targetAvgImpressions100d);
 

@@ -52,6 +52,93 @@ const NITTER_INSTANCES = [
     'nitter.kylrth.com',
 ];
 
+export interface ScrapeDiagnostics {
+    username: string;
+    startedAt: number;
+    durationMs: number;
+    v2: {
+        attempted: boolean;
+        success: boolean;
+        tweetCount: number;
+        error?: string;
+    };
+    syndication: {
+        attempted: boolean;
+        success: boolean;
+        tweetCount: number;
+        httpStatus?: number;
+        error?: string;
+    };
+    nitter: {
+        attempted: boolean;
+        success: boolean;
+        tweetCount: number;
+        instanceResults: Array<{
+            instance: string;
+            success: boolean;
+            tweetCount: number;
+            httpStatus?: number;
+            error?: string;
+        }>;
+    };
+    finalTweetCount: number;
+    source: 'api_v2' | 'scraping' | 'none';
+    cacheHit: boolean;
+}
+
+function createEmptyDiagnostics(username: string): ScrapeDiagnostics {
+    return {
+        username,
+        startedAt: Date.now(),
+        durationMs: 0,
+        v2: { attempted: false, success: false, tweetCount: 0 },
+        syndication: { attempted: false, success: false, tweetCount: 0 },
+        nitter: { attempted: false, success: false, tweetCount: 0, instanceResults: [] },
+        finalTweetCount: 0,
+        source: 'none',
+        cacheHit: false,
+    };
+}
+
+function logDiagnostics(diag: ScrapeDiagnostics): void {
+    const status = diag.finalTweetCount > 0 ? '✅ SUCCESS' : '❌ FAILED';
+    const lines = [
+        `\n[Scrape ${status}] @${diag.username} (${diag.durationMs}ms)`,
+    ];
+
+    if (diag.cacheHit) {
+        lines.push(`  Cache: HIT (${diag.finalTweetCount} tweets)`);
+    } else {
+        if (diag.v2.attempted) {
+            const v2Status = diag.v2.success ? '✅' : '❌';
+            lines.push(`  Twitter API v2: ${v2Status} ${diag.v2.tweetCount} tweets${diag.v2.error ? ` | Error: ${diag.v2.error}` : ''}`);
+        } else {
+            lines.push(`  Twitter API v2: ⏭️  skipped (no bearer token)`);
+        }
+
+        const synStatus = diag.syndication.success ? '✅' : '❌';
+        lines.push(`  Syndication: ${synStatus} ${diag.syndication.tweetCount} tweets${diag.syndication.httpStatus ? ` | HTTP ${diag.syndication.httpStatus}` : ''}${diag.syndication.error ? ` | Error: ${diag.syndication.error}` : ''}`);
+
+        if (diag.nitter.attempted) {
+            const nitStatus = diag.nitter.success ? '✅' : '❌';
+            lines.push(`  Nitter: ${nitStatus} ${diag.nitter.tweetCount} tweets`);
+            for (const inst of diag.nitter.instanceResults) {
+                const instStatus = inst.success ? '✅' : '❌';
+                lines.push(`    ${instStatus} ${inst.instance}: ${inst.tweetCount} tweets${inst.httpStatus ? ` | HTTP ${inst.httpStatus}` : ''}${inst.error ? ` | ${inst.error}` : ''}`);
+            }
+        } else {
+            lines.push(`  Nitter: ⏭️  skipped (syndication had enough tweets)`);
+        }
+    }
+
+    lines.push(`  Result: ${diag.finalTweetCount} tweets via ${diag.source}`);
+    console.log(lines.join('\n'));
+}
+
+// Shared diagnostics context for the current fetch.
+// This is set during fetchTweets/fetchTweetsWithDiagnostics and read by subroutines.
+let _activeDiagnostics: ScrapeDiagnostics | null = null;
+
 interface CacheEntry {
     value: FetchTimelineResult;
     expiresAt: number;
@@ -192,14 +279,22 @@ async function fetchTextWithRetry(url: string, init: NextFetchInit, attempts = S
 }
 
 // Fetch tweets using Twitter Syndication API + Nitter fallback (free, public).
-export async function fetchTweets(username: string): Promise<{ tweets: Tweet[]; user: TwitterUser | null; cached: boolean }> {
+export async function fetchTweets(username: string): Promise<{ tweets: Tweet[]; user: TwitterUser | null; cached: boolean; diagnostics: ScrapeDiagnostics }> {
     const cleanUsername = normalizeUsername(username);
+    const diag = createEmptyDiagnostics(cleanUsername);
+
     const cached = getCachedTimeline(cleanUsername);
 
     if (cached) {
+        diag.cacheHit = true;
+        diag.finalTweetCount = cached.tweets.length;
+        diag.source = cached.tweets.length > 0 ? 'scraping' : 'none';
+        diag.durationMs = Date.now() - diag.startedAt;
+        logDiagnostics(diag);
         return {
             ...cached,
             cached: true,
+            diagnostics: diag,
         };
     }
 
@@ -207,20 +302,30 @@ export async function fetchTweets(username: string): Promise<{ tweets: Tweet[]; 
     if (inflight) {
         try {
             const shared = await inflight;
+            diag.cacheHit = true;
+            diag.finalTweetCount = shared.tweets.length;
+            diag.source = shared.tweets.length > 0 ? 'scraping' : 'none';
+            diag.durationMs = Date.now() - diag.startedAt;
+            logDiagnostics(diag);
             return {
                 ...shared,
                 cached: true,
+                diagnostics: diag,
             };
         } catch (error) {
             console.error('Shared timeline fetch failed:', error);
+            diag.durationMs = Date.now() - diag.startedAt;
+            logDiagnostics(diag);
             return {
                 tweets: [],
                 user: null,
                 cached: true,
+                diagnostics: diag,
             };
         }
     }
 
+    _activeDiagnostics = diag;
     const fetchPromise = fetchFromPublicSources(cleanUsername);
     inflightTimelineFetches.set(cleanUsername, fetchPromise);
 
@@ -232,24 +337,40 @@ export async function fetchTweets(username: string): Promise<{ tweets: Tweet[]; 
             result.tweets.length > 0 ? SCRAPE_SUCCESS_CACHE_TTL_MS : SCRAPE_EMPTY_CACHE_TTL_MS
         );
 
+        diag.finalTweetCount = result.tweets.length;
+        diag.source = result.tweets.length > 0 ? 'scraping' : 'none';
+        diag.durationMs = Date.now() - diag.startedAt;
+        logDiagnostics(diag);
+
         return {
             ...result,
             cached: false,
+            diagnostics: diag,
         };
     } catch (error) {
         console.error('Public timeline fetch failed:', error);
         const fallback = { tweets: [], user: null };
         setCachedTimeline(cleanUsername, fallback, SCRAPE_EMPTY_CACHE_TTL_MS);
+
+        diag.durationMs = Date.now() - diag.startedAt;
+        logDiagnostics(diag);
+
         return {
             ...fallback,
             cached: false,
+            diagnostics: diag,
         };
     } finally {
+        _activeDiagnostics = null;
         inflightTimelineFetches.delete(cleanUsername);
     }
 }
 
 async function fetchFromPublicSources(username: string): Promise<FetchTimelineResult> {
+    if (_activeDiagnostics) {
+        _activeDiagnostics.syndication.attempted = true;
+    }
+
     let syndicationTweets: Tweet[] = [];
 
     try {
@@ -265,9 +386,17 @@ async function fetchFromPublicSources(username: string): Promise<FetchTimelineRe
         };
     }
 
+    if (_activeDiagnostics) {
+        _activeDiagnostics.nitter.attempted = true;
+    }
+
     let nitterTweets: Tweet[] = [];
     try {
         nitterTweets = await fetchFromNitter(username);
+        if (_activeDiagnostics) {
+            _activeDiagnostics.nitter.success = nitterTweets.length > 0;
+            _activeDiagnostics.nitter.tweetCount = nitterTweets.length;
+        }
     } catch (error) {
         console.error('Nitter fetch failed:', error);
     }
@@ -282,15 +411,31 @@ async function fetchFromPublicSources(username: string): Promise<FetchTimelineRe
 async function fetchFromSyndication(username: string): Promise<Tweet[]> {
     const url = `https://syndication.twitter.com/srv/timeline-profile/screen-name/${encodeURIComponent(username)}`;
 
-    const html = await fetchTextWithRetry(url, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-            Accept: 'text/html,application/xhtml+xml',
-        },
-        next: { revalidate: SCRAPE_REVALIDATE_SECONDS },
-    });
+    try {
+        const html = await fetchTextWithRetry(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+                Accept: 'text/html,application/xhtml+xml',
+            },
+            next: { revalidate: SCRAPE_REVALIDATE_SECONDS },
+        });
 
-    return dedupeAndSortTweets(parseSyndicationHTML(html, username));
+        const tweets = dedupeAndSortTweets(parseSyndicationHTML(html, username));
+        if (_activeDiagnostics) {
+            _activeDiagnostics.syndication.success = tweets.length > 0;
+            _activeDiagnostics.syndication.tweetCount = tweets.length;
+        }
+        return tweets;
+    } catch (error) {
+        if (_activeDiagnostics) {
+            _activeDiagnostics.syndication.success = false;
+            if (error instanceof HttpStatusError) {
+                _activeDiagnostics.syndication.httpStatus = error.status;
+            }
+            _activeDiagnostics.syndication.error = error instanceof Error ? error.message : String(error);
+        }
+        throw error;
+    }
 }
 
 function parseSyndicationHTML(html: string, username: string): Tweet[] {
@@ -385,15 +530,32 @@ async function fetchFromNitter(username: string): Promise<Tweet[]> {
 
 async function fetchFromNitterInstance(instance: string, username: string): Promise<Tweet[]> {
     const url = `https://${instance}/${encodeURIComponent(username)}/rss`;
-    const rss = await fetchTextWithRetry(url, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; TweetMates/1.0)',
-            Accept: 'application/rss+xml,application/xml,text/xml',
-        },
-        next: { revalidate: SCRAPE_REVALIDATE_SECONDS },
-    }, 1);
+    const instDiag = { instance, success: false, tweetCount: 0, httpStatus: undefined as number | undefined, error: undefined as string | undefined };
 
-    return dedupeAndSortTweets(parseNitterRSS(rss, username));
+    try {
+        const rss = await fetchTextWithRetry(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; TweetMates/1.0)',
+                Accept: 'application/rss+xml,application/xml,text/xml',
+            },
+            next: { revalidate: SCRAPE_REVALIDATE_SECONDS },
+        }, 1);
+
+        const tweets = dedupeAndSortTweets(parseNitterRSS(rss, username));
+        instDiag.success = tweets.length > 0;
+        instDiag.tweetCount = tweets.length;
+        return tweets;
+    } catch (error) {
+        if (error instanceof HttpStatusError) {
+            instDiag.httpStatus = error.status;
+        }
+        instDiag.error = error instanceof Error ? error.message : String(error);
+        throw error;
+    } finally {
+        if (_activeDiagnostics) {
+            _activeDiagnostics.nitter.instanceResults.push(instDiag);
+        }
+    }
 }
 
 function parseNitterRSS(rss: string, username: string): Tweet[] {
