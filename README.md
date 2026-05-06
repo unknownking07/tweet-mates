@@ -1,14 +1,15 @@
 # token-saver
 
-A Claude skill that helps you (and Claude) pick the cheapest model that can do the job.
+A Claude skill that helps you (and Claude) save tokens without sacrificing output quality.
 
-Most tasks do not need Opus 4.7. This skill teaches Claude to:
+The four levers it teaches:
 
-- Use **Haiku 4.5** for extraction, classification, and quick lookups
-- Use **Sonnet 4.6** for most coding, planning, and code review
-- Reserve **Opus 4.7** for heavy multi-file execution and genuinely hard reasoning
+- **Right model for the task** — Haiku 4.5 for extraction, Sonnet 4.6 for most coding, Opus 4.7 only for heavy execution
+- **Don't brainstorm with Opus** — it's built to execute, not ideate; use Sonnet/Haiku for ideas, then escalate for the heavy turn
+- **Keep chats tight** — every turn re-reads all prior tokens; scope one chat to one task and start fresh for the next
+- **Give Claude memory** — `CLAUDE.md`, memory files, and skills mean Claude doesn't re-derive context every session
 
-The skill activates automatically when you start a new task, mention cost, or switch models — and reminds you mid-session if the work has outgrown (or is overkill for) the active model.
+The skill activates automatically when you start a new task, mention cost, switch models, or when chats start sprawling.
 
 ## Install
 
@@ -43,6 +44,8 @@ You can also invoke it explicitly:
 
 ## Quick reference
 
+**Model for the task:**
+
 | Task | Model |
 |---|---|
 | Read a log, summarize a file, classify text | Haiku 4.5 |
@@ -50,6 +53,13 @@ You can also invoke it explicitly:
 | Multi-file refactor, hard debugging, deep architecture | Opus 4.7 |
 
 Switching in Claude Code: `/model opus` / `/model sonnet` / `/model haiku`.
+
+**Token-saving habits:**
+
+- Brainstorm in Sonnet/Haiku → execute in Opus only when needed
+- One chat = one task; close it when done
+- Write a `CLAUDE.md` for any repo you'll touch more than twice
+- Keep context lean — quote the 20 lines that matter, not the whole file
 
 ## Update
 
