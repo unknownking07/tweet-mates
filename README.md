@@ -1,56 +1,70 @@
-# TweetMates
+# token-saver
 
-Find CT-style matches based on estimated impressions from the latest 10 posts.
+A Claude skill that helps you (and Claude) pick the cheapest model that can do the job.
 
-## Requirements
+Most tasks do not need Opus 4.7. This skill teaches Claude to:
 
-- Node.js 20+
-- Optional: X API v2 bearer token (`TWITTER_BEARER_TOKEN`)
+- Use **Haiku 4.5** for extraction, classification, and quick lookups
+- Use **Sonnet 4.6** for most coding, planning, and code review
+- Reserve **Opus 4.7** for heavy multi-file execution and genuinely hard reasoning
 
-## Setup
+The skill activates automatically when you start a new task, mention cost, or switch models — and reminds you mid-session if the work has outgrown (or is overkill for) the active model.
 
-1. Install dependencies:
+## Install
 
-```bash
-npm install
-```
-
-2. Create env file:
+One line:
 
 ```bash
-cp .env.example .env.local
+curl -fsSL https://raw.githubusercontent.com/unknownking07/token-saver/main/install.sh | bash
 ```
 
-3. Optional: add `TWITTER_BEARER_TOKEN` in `.env.local` for official API data.
-
-4. Recommended for social previews: set `NEXT_PUBLIC_SITE_URL` to your deployed URL (for example `https://tweetmates.vercel.app`).
-
-5. Start the app:
+Or manually:
 
 ```bash
-npm run dev
+git clone https://github.com/unknownking07/token-saver.git ~/.claude/skills/token-saver
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+That puts the skill at `~/.claude/skills/token-saver/SKILL.md`, where Claude Code picks it up automatically. Start a new conversation and it's live.
 
-## Notes
+## Usage
 
-- Timeline fetch tries official X API v2 first, then falls back to scraping sources.
-- Matching is based on estimated impressions/day from the latest 10 posts and impression category.
-- Match candidates come from accounts that have already been searched in this app.
-- Supabase config is optional and only used for persistence/matches cache.
+The skill auto-triggers on:
 
-## Google Analytics (GA4)
+- Starting a new engineering task
+- Asking "which model should I use for X?"
+- Mentioning cost, tokens, budget, or switching models
+- Telling Claude the current task feels too heavy or too light for the active model
 
-To track users from day one, set `NEXT_PUBLIC_GA_MEASUREMENT_ID` in both local and Vercel env vars.
+You can also invoke it explicitly:
 
-This app sends:
-- Automatic page views for all route changes.
-- `search_submit` when a user searches a handle.
-- `profile_analysis_success` and `profile_analysis_error`.
-- Share action (`share_caption_x_clicked`).
+```
+/token-saver
+```
 
-After deploy, open your GA4 property dashboard:
-- Realtime: verify events are coming in.
-- Reports > Engagement > Events: monitor funnel volume.
-- Explore: build a conversion funnel from `search_submit` to `profile_analysis_success`.
+## Quick reference
+
+| Task | Model |
+|---|---|
+| Read a log, summarize a file, classify text | Haiku 4.5 |
+| Plan a feature, write tests, review a diff, single-file refactor | Sonnet 4.6 |
+| Multi-file refactor, hard debugging, deep architecture | Opus 4.7 |
+
+Switching in Claude Code: `/model opus` / `/model sonnet` / `/model haiku`.
+
+## Update
+
+```bash
+git -C ~/.claude/skills/token-saver pull
+```
+
+Or re-run the install script.
+
+## Uninstall
+
+```bash
+rm -rf ~/.claude/skills/token-saver
+```
+
+## License
+
+MIT
